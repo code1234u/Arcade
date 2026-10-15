@@ -5,38 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arcade</title>
     <style>
-        /* Make the page take up the full screen and remove default margins */
+        /* Reset margins and set background to white */
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
             background-color: white;
+            font-family: Arial, sans-serif;
         }
 
-        /* Create a 2x2 grid that fills the entire viewport */
+        /* Create a 2x2 grid that fills the screen with a bit more space between boxes */
         .arcade-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* Two columns of equal width */
-            grid-template-rows: 1fr 1fr;    /* Two rows of equal height */
-            gap: 10px;                      /* Tiny space between the boxes */
-            height: 100vh;                  /* Full viewport height */
-            padding: 10px;                  /* Tiny space around the edges */
-            box-sizing: border-box;         /* Include padding in the total size */
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;                      /* Increased space between the boxes */
+            height: 100vh;                  
+            padding: 20px;                  
+            box-sizing: border-box;         
         }
 
-        /* Style for each of the 4 boxes */
+        /* Style for the standard black boxes */
         .box {
             background-color: black;
-            border-radius: 4px;             /* Optional: slightly rounded corners */
+            border-radius: 8px;             
+        }
+
+        /* Special style for the top-left box so it acts like a clickable link */
+        .game-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;          /* Removes the underline from the link */
+            color: white;                   /* White text */
+            font-size: 28px;
+            font-weight: bold;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        /* Adds a cool little hover effect when you mouse over it */
+        .game-link:hover {
+            background-color: #1a1a1a;      /* Slightly lighter black on hover */
+            transform: scale(1.01);         /* Tiny pop-out effect */
         }
     </style>
 </head>
 <body>
 
     <div class="arcade-grid">
+        <!-- Top-Left Box: Clickable link to your game page -->
+        <a href="cube-jump.html" class="box game-link">cube jump</a>
+        
+        <!-- Top-Right Box -->
         <div class="box"></div>
+        
+        <!-- Bottom-Left Box -->
         <div class="box"></div>
-        <div class="box"></div>
+        
+        <!-- Bottom-Right Box -->
         <div class="box"></div>
     </div>
 
