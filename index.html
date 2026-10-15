@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade</title>
+    <style>
+        /* Make the page take up the full screen and remove default margins */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: white;
+        }
+
+        /* Create a 2x2 grid that fills the entire viewport */
+        .arcade-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns of equal width */
+            grid-template-rows: 1fr 1fr;    /* Two rows of equal height */
+            gap: 10px;                      /* Tiny space between the boxes */
+            height: 100vh;                  /* Full viewport height */
+            padding: 10px;                  /* Tiny space around the edges */
+            box-sizing: border-box;         /* Include padding in the total size */
+        }
+
+        /* Style for each of the 4 boxes */
+        .box {
+            background-color: black;
+            border-radius: 4px;             /* Optional: slightly rounded corners */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="arcade-grid">
+        <div class="box"></div>
+        <div class="box"></div>
+        <div class="box"></div>
+        <div class="box"></div>
+    </div>
+
+</body>
+</html>
