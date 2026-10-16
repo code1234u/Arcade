@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Archery Game</title>
     <style>
         body {
@@ -15,6 +16,7 @@
             color: #fff;
             font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
+            touch-action: none;
         }
         #game-container {
             position: relative;
@@ -36,10 +38,11 @@
             padding: 10px 20px;
             border: 2px solid #fff;
             letter-spacing: 2px;
+            z-index: 10;
         }
         #feedback-display {
             position: absolute;
-            top: 150px;
+            top: 120px;
             width: 100%;
             text-align: center;
             font-size: 48px;
@@ -48,6 +51,7 @@
             display: none;
             pointer-events: none;
             letter-spacing: 3px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -66,11 +70,11 @@
 
         let score = 0;
 
-        // Target position in the distance
+        // Perfectly centered target configuration
         const target = {
             x: 400,
-            y: 220,
-            radius: 70
+            y: 200,
+            radius: 80
         };
 
         // Aiming and shooting state
@@ -81,47 +85,74 @@
         let currentY = 500;
 
         let flyingArrow = null;
-        let stuckArrows = []; // Stores arrows that hit the target board
+        let stuckArrows = []; 
         let feedbackTimeout = null;
 
-        // Input listeners
-        canvas.addEventListener('mousedown', (e) => {
-            if (flyingArrow) return; // Can't shoot while one is in the air
+        // Unified input coordinates helper (Mouse & Touch)
+        function getClientPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
 
-            if (Math.hypot(mouseX - 400, mouseY - 500) < 120) {
+        // Event Listeners for PC and Mobile support
+        canvas.addEventListener('mousedown', startAim);
+        canvas.addEventListener('touchstart', startAim);
+
+        canvas.addEventListener('mousemove', moveAim);
+        canvas.addEventListener('touchmove', moveAim);
+
+        window.addEventListener('mouseup', releaseArrow);
+        window.addEventListener('touchend', releaseArrow);
+
+        function startAim(e) {
+            if (flyingArrow) return;
+            const pos = getClientPos(e);
+
+            // Allow clicking/touching anywhere near the bottom bow area to pull back
+            if (Math.hypot(pos.x - 400, pos.y - 500) < 150) {
                 isAiming = true;
                 startX = 400;
                 startY = 500;
-                currentX = mouseX;
-                currentY = mouseY;
+                currentX = pos.x;
+                currentY = pos.y;
+                e.preventDefault();
             }
-        });
+        }
 
-        canvas.addEventListener('mousemove', (e) => {
+        function moveAim(e) {
             if (!isAiming) return;
-            const rect = canvas.getBoundingClientRect();
-            currentX = e.clientX - rect.left;
-            currentY = e.clientY - rect.top;
-        });
+            const pos = getClientPos(e);
+            currentX = pos.x;
+            currentY = pos.y;
+            e.preventDefault();
+        }
 
-        window.addEventListener('mouseup', () => {
+        function releaseArrow(e) {
             if (!isAiming) return;
             isAiming = false;
 
+            // Calculate pull vector (pulling back shoots forward toward target)
             const dx = startX - currentX;
             const dy = startY - currentY;
 
+            // Scale velocity to map pull accurately to the centered target space
             flyingArrow = {
                 x: 400,
                 y: 500,
-                vx: dx * 0.12,
-                vy: dy * 0.12,
+                vx: dx * 0.1,
+                vy: dy * 0.1,
                 scale: 1.0
             };
-        });
+        }
 
         function showFeedback(text, color) {
             feedbackDisplay.innerText = text;
@@ -139,36 +170,32 @@
             if (flyingArrow) {
                 flyingArrow.x += flyingArrow.vx;
                 flyingArrow.y += flyingArrow.vy;
-                flyingArrow.scale -= 0.02; // Shrinks as it travels into the distance
+                flyingArrow.scale -= 0.025; // Shrinks to simulate distance depth
 
-                // When arrow reaches target depth
+                // Arrow hits impact depth threshold
                 if (flyingArrow.scale <= 0.3) {
                     const dist = Math.hypot(flyingArrow.x - target.x, flyingArrow.y - target.y);
 
                     if (dist < target.radius) {
-                        // Hit target
+                        // Precise scoring zones
                         let points = 2;
                         if (dist < 15) points = 10;       // Bullseye
-                        else if (dist < 35) points = 5;   // Inner ring
+                        else if (dist < 40) points = 5;   // Inner Ring
 
                         score += points;
                         scoreBoard.innerText = `SCORE: ${score}`;
 
-                        // Save arrow position on the board so it sticks there
                         const savedArrow = { x: flyingArrow.x, y: flyingArrow.y };
                         stuckArrows.push(savedArrow);
 
-                        // Remove arrow after 3 seconds along with feedback
                         setTimeout(() => {
                             const index = stuckArrows.indexOf(savedArrow);
-                            if (index > -1) {
-                                stuckArrows.splice(index, 1);
-                            }
+                            if (index > -1) stuckArrows.splice(index, 1);
                         }, 3000);
 
                         showFeedback(`HIT! +${points}`, '#2ed573');
                     } else {
-                        // Missed target
+                        // Missed board - flies off much higher/outward naturally
                         showFeedback('MISS!', '#ff4757');
                     }
 
@@ -183,7 +210,7 @@
         }
 
         function drawScene() {
-            // Sky
+            // Sky background
             ctx.fillStyle = '#70a1ff';
             ctx.fillRect(0, 0, 800, 350);
 
@@ -191,15 +218,15 @@
             ctx.fillStyle = '#2ed573';
             ctx.fillRect(0, 350, 800, 250);
 
-            // Target wooden stand
-            drawPixelRect(390, 280, 20, 100, '#5c3a21');
+            // Centered target wooden stand pole
+            drawPixelRect(390, 260, 20, 120, '#5c3a21');
 
-            // Target rings (Pixelated concentric circles)
+            // Concentric Target Rings
             const rings = [
-                { r: 70, color: '#ff4757' }, // Red
-                { r: 50, color: '#ffffff' }, // White
-                { r: 30, color: '#ff4757' }, // Red
-                { r: 12, color: '#2f3542' }  // Bullseye
+                { r: 80, color: '#ff4757' }, // Outer Red
+                { r: 55, color: '#ffffff' }, // White Ring
+                { r: 30, color: '#ff4757' }, // Inner Red
+                { r: 12, color: '#2f3542'  } // Bullseye Dark
             ];
 
             rings.forEach(ring => {
@@ -212,17 +239,16 @@
                 ctx.stroke();
             });
 
-            // Draw all arrows currently stuck on the target board
+            // Stuck arrows rendering
             stuckArrows.forEach(arrow => {
                 drawPixelRect(arrow.x - 2, arrow.y - 8, 4, 16, '#ffa502');
                 ctx.fillStyle = '#ff6b81';
-                ctx.fillRect(arrow.x - 4, arrow.y - 12, 8, 4); // Arrow fletching
+                ctx.fillRect(arrow.x - 4, arrow.y - 12, 8, 4);
             });
         }
 
         function drawBowAndArrow() {
             if (flyingArrow) {
-                // Draw flying arrow shrinking in perspective
                 const size = Math.max(8, flyingArrow.scale * 40);
                 drawPixelRect(flyingArrow.x - size/4, flyingArrow.y - size, size/2, size * 2, '#ffa502');
             } else {
@@ -234,7 +260,7 @@
                 ctx.stroke();
 
                 if (isAiming) {
-                    // Bow string pulled back to mouse
+                    // Bowstring pulled back dynamically
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
@@ -243,7 +269,7 @@
                     ctx.lineTo(460, 520);
                     ctx.stroke();
 
-                    // Arrow shaft ready to launch
+                    // Arrow loaded on string
                     drawPixelRect(currentX - 3, currentY - 20, 6, 40, '#eccc68');
                 }
             }
