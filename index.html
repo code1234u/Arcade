@@ -53,6 +53,49 @@
             letter-spacing: 3px;
             z-index: 10;
         }
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+        }
+        #game-over-screen h1 {
+            font-size: 52px;
+            color: #ff4757;
+            text-shadow: 4px 4px #000;
+            margin-bottom: 20px;
+            letter-spacing: 3px;
+        }
+        #game-over-screen h2 {
+            font-size: 44px;
+            color: #fff;
+            text-shadow: 3px 3px #000;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        #reset-btn {
+            background: #2ed573;
+            color: #fff;
+            border: 4px solid #fff;
+            padding: 15px 30px;
+            font-size: 32px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px #000;
+        }
+        #reset-btn:hover {
+            background: #26af5f;
+        }
         
         /* Responsive scaling container for mobile without changing desktop layout */
         @media (max-width: 820px), (max-height: 620px) {
@@ -70,8 +113,13 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="score-board">SCORE: 0</div>
+        <div id="score-board">SCORE: 0 | ROUND: 1/5</div>
         <div id="feedback-display"></div>
+        <div id="game-over-screen">
+            <h1>5 ROUNDS DONE!</h1>
+            <h2 id="final-score-text">SCORE: 0</h2>
+            <button id="reset-btn" onclick="resetGame()">CLICK RESET</button>
+        </div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
     </div>
 
@@ -80,12 +128,16 @@
         const ctx = canvas.getContext('2d');
         const scoreBoard = document.getElementById('score-board');
         const feedbackDisplay = document.getElementById('feedback-display');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreText = document.getElementById('final-score-text');
 
         let score = 0;
+        let round = 1;
+        const maxRounds = 5;
 
-        // Perfectly centered target configuration
+        // Target shifted a bit to the left (x: 330 instead of 400)
         const target = {
-            x: 400,
+            x: 330,
             y: 200,
             radius: 80
         };
@@ -100,6 +152,7 @@
         let flyingArrow = null;
         let stuckArrows = []; 
         let feedbackTimeout = null;
+        let isGameOver = false;
 
         // Unified input coordinates helper (Mouse & Touch mapped accurately to 800x600 canvas)
         function getClientPos(e) {
@@ -124,7 +177,7 @@
         window.addEventListener('touchend', releaseArrow);
 
         function startAim(e) {
-            if (flyingArrow) return;
+            if (flyingArrow || isGameOver) return;
             const pos = getClientPos(e);
 
             if (Math.hypot(pos.x - 400, pos.y - 500) < 150) {
@@ -138,7 +191,7 @@
         }
 
         function moveAim(e) {
-            if (!isAiming) return;
+            if (!isAiming || isGameOver) return;
             const pos = getClientPos(e);
             currentX = pos.x;
             currentY = pos.y;
@@ -146,15 +199,15 @@
         }
 
         function releaseArrow(e) {
-            if (!isAiming) return;
+            if (!isAiming || isGameOver) return;
             isAiming = false;
 
             // Calculate pull vector
             const dx = startX - currentX;
             const dy = startY - currentY;
 
-            // Direct mapping: where you pull dictates exactly where the arrow lands on screen!
-            const targetLandingX = 400 + (dx * 1.5);
+            // Direct mapping adjusted for the new target position (330 instead of 400)
+            const targetLandingX = 330 + (dx * 1.5);
             const targetLandingY = 200 + (dy * 1.5);
 
             flyingArrow = {
@@ -178,7 +231,7 @@
 
             feedbackTimeout = setTimeout(() => {
                 feedbackDisplay.style.display = 'none';
-            }, 3000);
+            }, 2000);
         }
 
         function update() {
@@ -203,33 +256,43 @@
                         else if (dist < 40) points = 5;   // Inner Ring
 
                         score += points;
-                        scoreBoard.innerText = `SCORE: ${score}`;
-
-                        const savedArrow = { x: flyingArrow.destX, y: flyingArrow.destY, type: 'arrow' };
-                        stuckArrows.push(savedArrow);
-
-                        setTimeout(() => {
-                            const index = stuckArrows.indexOf(savedArrow);
-                            if (index > -1) stuckArrows.splice(index, 1);
-                        }, 3000);
-
                         showFeedback(`HIT! +${points}`, '#2ed573');
                     } else {
-                        // Missed the board completely -> Show black cross where aimed, fly higher up, and say MISS!
-                        const missMarker = { x: flyingArrow.destX, y: flyingArrow.destY, type: 'cross' };
-                        stuckArrows.push(missMarker);
-
-                        setTimeout(() => {
-                            const index = stuckArrows.indexOf(missMarker);
-                            if (index > -1) stuckArrows.splice(index, 1);
-                        }, 3000);
-
                         showFeedback('MISS!', '#ff4757');
                     }
 
+                    const savedArrow = { x: flyingArrow.destX, y: flyingArrow.destY, type: dist < target.radius ? 'arrow' : 'cross' };
+                    stuckArrows.push(savedArrow);
+
+                    setTimeout(() => {
+                        const index = stuckArrows.indexOf(savedArrow);
+                        if (index > -1) stuckArrows.splice(index, 1);
+                    }, 2000);
+
                     flyingArrow = null;
+
+                    // Advance round or end game
+                    round++;
+                    if (round > maxRounds) {
+                        isGameOver = true;
+                        finalScoreText.innerText = `SCORE: ${score}`;
+                        gameOverScreen.style.display = 'flex';
+                    }
+
+                    scoreBoard.innerText = `SCORE: ${score} | ROUND: ${Math.min(round, maxRounds)}/5`;
                 }
             }
+        }
+
+        function resetGame() {
+            score = 0;
+            round = 1;
+            isGameOver = false;
+            stuckArrows = [];
+            flyingArrow = null;
+            scoreBoard.innerText = `SCORE: ${score} | ROUND: ${round}/5`;
+            gameOverScreen.style.display = 'none';
+            feedbackDisplay.style.display = 'none';
         }
 
         function drawPixelRect(x, y, w, h, color) {
@@ -246,8 +309,8 @@
             ctx.fillStyle = '#2ed573';
             ctx.fillRect(0, 350, 800, 250);
 
-            // Centered target wooden stand pole
-            drawPixelRect(390, 260, 20, 120, '#5c3a21');
+            // Target wooden stand pole (shifted left to 330)
+            drawPixelRect(320, 260, 20, 120, '#5c3a21');
 
             // Concentric Target Rings
             const rings = [
@@ -274,7 +337,6 @@
                     ctx.fillStyle = '#ff6b81';
                     ctx.fillRect(item.x - 4, item.y - 12, 8, 4);
                 } else if (item.type === 'cross') {
-                    // Draw black pixelated cross where aimed on miss
                     ctx.strokeStyle = '#000000';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
@@ -292,7 +354,7 @@
                 const size = Math.max(8, flyingArrow.scale * 40);
                 drawPixelRect(flyingArrow.x - size/4, flyingArrow.y - size, size/2, size * 2, '#ffa502');
             } else {
-                // Bow body at bottom center
+                // Bow body at bottom center (stays at 400)
                 ctx.strokeStyle = '#8b4513';
                 ctx.lineWidth = 6;
                 ctx.beginPath();
