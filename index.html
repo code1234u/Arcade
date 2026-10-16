@@ -37,11 +37,24 @@
             border: 2px solid #fff;
             letter-spacing: 2px;
         }
+        #feedback-display {
+            position: absolute;
+            top: 150px;
+            width: 100%;
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 4px 4px #000;
+            display: none;
+            pointer-events: none;
+            letter-spacing: 3px;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <div id="score-board">SCORE: 0</div>
+        <div id="feedback-display"></div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
     </div>
 
@@ -49,6 +62,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreBoard = document.getElementById('score-board');
+        const feedbackDisplay = document.getElementById('feedback-display');
 
         let score = 0;
 
@@ -67,15 +81,17 @@
         let currentY = 500;
 
         let flyingArrow = null;
+        let stuckArrows = []; // Stores arrows that hit the target board
+        let feedbackTimeout = null;
 
         // Input listeners
         canvas.addEventListener('mousedown', (e) => {
+            if (flyingArrow) return; // Can't shoot while one is in the air
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Click near the bottom center bow area to pull
-            if (!flyingArrow && Math.hypot(mouseX - 400, mouseY - 500) < 120) {
+            if (Math.hypot(mouseX - 400, mouseY - 500) < 120) {
                 isAiming = true;
                 startX = 400;
                 startY = 500;
@@ -95,7 +111,6 @@
             if (!isAiming) return;
             isAiming = false;
 
-            // Calculate launch velocity based on pull distance/direction
             const dx = startX - currentX;
             const dy = startY - currentY;
 
@@ -108,6 +123,18 @@
             };
         });
 
+        function showFeedback(text, color) {
+            feedbackDisplay.innerText = text;
+            feedbackDisplay.style.color = color;
+            feedbackDisplay.style.display = 'block';
+
+            if (feedbackTimeout) clearTimeout(feedbackTimeout);
+
+            feedbackTimeout = setTimeout(() => {
+                feedbackDisplay.style.display = 'none';
+            }, 3000);
+        }
+
         function update() {
             if (flyingArrow) {
                 flyingArrow.x += flyingArrow.vx;
@@ -119,12 +146,32 @@
                     const dist = Math.hypot(flyingArrow.x - target.x, flyingArrow.y - target.y);
 
                     if (dist < target.radius) {
-                        // Score calculation based on accuracy
-                        if (dist < 15) score += 10;       // Bullseye
-                        else if (dist < 35) score += 5;   // Inner ring
-                        else score += 2;                  // Outer ring
+                        // Hit target
+                        let points = 2;
+                        if (dist < 15) points = 10;       // Bullseye
+                        else if (dist < 35) points = 5;   // Inner ring
+
+                        score += points;
                         scoreBoard.innerText = `SCORE: ${score}`;
+
+                        // Save arrow position on the board so it sticks there
+                        const savedArrow = { x: flyingArrow.x, y: flyingArrow.y };
+                        stuckArrows.push(savedArrow);
+
+                        // Remove arrow after 3 seconds along with feedback
+                        setTimeout(() => {
+                            const index = stuckArrows.indexOf(savedArrow);
+                            if (index > -1) {
+                                stuckArrows.splice(index, 1);
+                            }
+                        }, 3000);
+
+                        showFeedback(`HIT! +${points}`, '#2ed573');
+                    } else {
+                        // Missed target
+                        showFeedback('MISS!', '#ff4757');
                     }
+
                     flyingArrow = null;
                 }
             }
@@ -163,6 +210,13 @@
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = '#000';
                 ctx.stroke();
+            });
+
+            // Draw all arrows currently stuck on the target board
+            stuckArrows.forEach(arrow => {
+                drawPixelRect(arrow.x - 2, arrow.y - 8, 4, 16, '#ffa502');
+                ctx.fillStyle = '#ff6b81';
+                ctx.fillRect(arrow.x - 4, arrow.y - 12, 8, 4); // Arrow fletching
             });
         }
 
